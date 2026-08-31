@@ -9,14 +9,35 @@ Full design and rationale: **[TWITCH_BIBLE_BOT_PLAN.md](./TWITCH_BIBLE_BOT_PLAN.
 
 | Phase | State |
 | --- | --- |
-| 0 — Twitch setup | not started |
-| 1 — Auth + token refresh | not started |
+| 0 — Twitch setup | **your turn** — see below |
+| **1 — Auth + token refresh** | **code done**, needs credentials to run |
 | **2 — Verses, formatting, splitting** | **done** |
 | 3 — Sending to chat | not started |
 | 4 — Loop + live-gating | not started |
 | 5 — Process management | not started |
 
 Phase 2 is entirely offline — no credentials, no network.
+
+## Phase 0 — what you need to do
+
+1. **Create a separate Twitch account for the bot.** It must be email/phone verified or Twitch
+   silently drops its messages.
+2. **Register an app** at [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps). Set
+   the OAuth Redirect URL to exactly `http://localhost:3000/callback`. Copy the Client ID and
+   generate a Client Secret into `.env`.
+3. **Make the bot a moderator in your channel** — `/mod yourbotname`. Exempts it from slow mode
+   and followers-only, raises its rate limit, keeps AutoMod out of the way.
+
+Then:
+
+```bash
+cp .env.example .env    # fill in client id, secret, channel
+npm run authorize       # log in AS THE BOT — whoever approves is who speaks
+npm run whoami          # prints the two user IDs to paste into .env
+```
+
+`whoami` doubles as the health check — it exercises load → refresh-if-needed →
+authenticated request, so it's the first thing to run when something stops working.
 
 ## Requirements
 
@@ -28,10 +49,12 @@ only for `npm run typecheck`.
 
 ```bash
 npm install          # devDeps only
-npm run preview      # 20 random formatted verses
+npm run preview      # 20 random formatted verses — no credentials needed
 npm run preview -- 50
 npm run typecheck
 ```
+
+Once Phase 0 is done: `npm run authorize`, then `npm run whoami`.
 
 `preview` works immediately against a small sample file. See
 [`data/README.md`](./data/README.md) to install a full translation — drop
@@ -45,11 +68,28 @@ src/
 ├── domain/types.ts  # Verse, VerseId
 ├── verses.ts        # load, random select with no-repeat memory, recent-list persistence
 ├── format.ts        # reference formatting + long-verse splitting
-└── preview.ts       # offline CLI
+├── preview.ts       # offline CLI
+├── auth.ts          # token load / refresh / persist
+├── authorize.ts     # one-time OAuth (run once)
+├── twitch.ts        # Helix client — always sends a guaranteed-fresh token
+└── whoami.ts        # validate token, resolve user IDs, health check
 
 data/                # bundled translation (public domain)
 state/               # gitignored — tokens.json, recent.json
 ```
+
+## A constraint on the TypeScript you can write here
+
+Node's `--experimental-strip-types` **erases** types; it does not transform code. So three
+things are unavailable despite `tsc` accepting them without complaint:
+
+- constructor **parameter properties** (`constructor(readonly x: number)`)
+- `enum`
+- `namespace`
+
+Declare and assign class fields explicitly, and use `const` objects or union types instead of
+enums. Typecheck will not catch these — they fail at runtime with
+`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`.
 
 ## How verses are chosen and formatted
 

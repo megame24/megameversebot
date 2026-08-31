@@ -24,8 +24,17 @@ export interface TwitchConfig {
   clientId: string;
   clientSecret: string;
   channel: string;
+  /** Empty until resolved via `npm run whoami`. */
   botUserId: string;
   channelUserId: string;
+}
+
+export interface RequireTwitchOptions {
+  /**
+   * User IDs are resolved *from* a token, so the authorize and whoami steps run
+   * before they are known. Those callers pass false; everything else needs them.
+   */
+  requireUserIds?: boolean;
 }
 
 function num(name: string, fallback: number): number {
@@ -70,28 +79,26 @@ export function loadConfig(): Config {
  * Fails fast when Twitch credentials are missing. Called only from code paths
  * that actually talk to Twitch, so `npm run preview` stays usable with no .env.
  */
-export function requireTwitchConfig(): TwitchConfig {
-  const required = [
-    'TWITCH_CLIENT_ID',
-    'TWITCH_CLIENT_SECRET',
-    'TWITCH_CHANNEL',
-    'BOT_USER_ID',
-    'CHANNEL_USER_ID',
-  ] as const;
+export function requireTwitchConfig(options: RequireTwitchOptions = {}): TwitchConfig {
+  const { requireUserIds = true } = options;
+
+  const required = ['TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TWITCH_CHANNEL'];
+  if (requireUserIds) required.push('BOT_USER_ID', 'CHANNEL_USER_ID');
 
   const missing = required.filter((key) => !process.env[key]);
   if (missing.length > 0) {
-    throw new Error(
-      `Missing required Twitch config: ${missing.join(', ')}. ` +
-        `Copy .env.example to .env and fill it in.`,
-    );
+    const hint = missing.some((key) => key.endsWith('_USER_ID'))
+      ? `\n\nUser IDs come from:  npm run whoami`
+      : `\n\nCopy .env.example to .env and fill it in.`;
+
+    throw new Error(`Missing required Twitch config: ${missing.join(', ')}${hint}`);
   }
 
   return {
     clientId: process.env['TWITCH_CLIENT_ID']!,
     clientSecret: process.env['TWITCH_CLIENT_SECRET']!,
     channel: process.env['TWITCH_CHANNEL']!,
-    botUserId: process.env['BOT_USER_ID']!,
-    channelUserId: process.env['CHANNEL_USER_ID']!,
+    botUserId: process.env['BOT_USER_ID'] ?? '',
+    channelUserId: process.env['CHANNEL_USER_ID'] ?? '',
   };
 }

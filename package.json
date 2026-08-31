@@ -9,6 +9,8 @@
   },
   "scripts": {
     "preview": "node --experimental-strip-types src/preview.ts",
+    "authorize": "node --env-file=.env --experimental-strip-types src/authorize.ts",
+    "whoami": "node --env-file=.env --experimental-strip-types src/whoami.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
