@@ -85,9 +85,14 @@ npm run typecheck
 
 Once Phase 0 is done: `npm run authorize`, then `npm run whoami`.
 
-`preview` works immediately against a small sample file. See
-[`data/README.md`](./data/README.md) to install a full translation — drop
-`verses.web.json` into `data/` and it's picked up automatically.
+The full World English Bible (31,098 verses) is committed in `data/`. To regenerate it:
+
+```bash
+npm run fetch-web
+```
+
+See [`data/README.md`](./data/README.md) for why the WEB, what the five dropped verses are,
+and what to check if you swap translations.
 
 ## Layout
 
@@ -159,10 +164,11 @@ Esther 8:9 (WEB) 2/2 — "which are from India to Ethiopia..."
 ```
 
 Splits land on the clause boundary nearest the midpoint (`;` `:` `.` `,` in that order,
-falling back to a word boundary) — never mid-word. Two parts always suffice: the longest
-verse in the Bible is ~530 characters against a ~890-character two-message budget.
+falling back to a word boundary) — never mid-word.
 
-Run `npm run preview` to see the real split count for your translation.
+In the WEB this affects **exactly one verse of 31,098** — Esther 8:9, at 491 characters. Two
+parts always suffice, against a two-message budget of ~890. Run `npm run preview` to see the
+count for any translation you swap in.
 
 ## Configuration
 

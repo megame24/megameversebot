@@ -14,7 +14,8 @@
     "authorize": "node --env-file=.env --experimental-strip-types src/authorize.ts",
     "whoami": "node --env-file=.env --experimental-strip-types src/whoami.ts",
     "send-test": "node --env-file=.env --experimental-strip-types src/send-test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "fetch-web": "node --experimental-strip-types src/fetch-web.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

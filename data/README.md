@@ -1,45 +1,65 @@
 # Verse data
 
-## What's here now
+## What's here
 
-`verses.sample.json` — ten well-known verses, used so the project runs immediately after
-clone. **It is a development placeholder, not an authoritative text.** The wording is
-approximately WEB but has not been verified against the source; replace it before going live.
+| File | Purpose |
+| --- | --- |
+| `verses.web.json` | **The World English Bible — 31,098 verses, 5.4 MB.** What the bot actually uses. |
+| `verses.sample.json` | Ten verses, kept as a fallback so the project runs before the real file is fetched. Development placeholder; not authoritative. |
 
-## Installing the real translation
+`loadVerses()` prefers `verses.<translation>.json` and falls back to the sample with a warning.
 
-Drop a file named `verses.<translation>.json` here — e.g. `verses.web.json` — and
-`loadVerses()` picks it up automatically in preference to the sample. Nothing else to change.
+## Regenerating
 
-Expected shape: a flat array of ~31,102 objects, roughly 4–5 MB.
-
-```json
-[
-  { "book": "Genesis", "chapter": 1, "verse": 1, "text": "In the beginning..." }
-]
+```bash
+npm run fetch-web
 ```
 
-## Where to get it
+Downloads all 66 books, flattens them, validates, and writes `verses.web.json`. Idempotent —
+safe to re-run.
 
-Public domain translations, safe to bundle and redistribute:
+The source stores each book as a stream of typed entries carrying paragraph and poetry
+structure for printing, so a single verse can span several entries when a break falls
+mid-verse. The script concatenates them in document order and normalises whitespace.
 
-| Translation | Notes |
-| --- | --- |
-| **WEB** (World English Bible) | Modern readable English, unambiguously public domain. `ebible.org` is its canonical home. **Recommended.** |
-| **KJV** | Traditional. Public domain in the US and most of the world; technically under perpetual Crown copyright in the UK — irrelevant in practice here, but worth knowing. |
-| **ASV** (1901) | Public domain, more literal, slightly archaic. |
+## About the five dropped verses
 
-Several GitHub repos publish these as ready-made JSON. Whichever you use, check:
+The fetch reports dropping five verses with no body text:
 
-- **Verse count** — around 31,102 for a complete Protestant canon.
-- **Book naming** — must be consistent, since `"<book> <chapter>:<verse>"` is the no-repeat key.
-  Decide between `Psalms` and `Psalm` and stick to it.
-- **Encoding** — UTF-8, and watch for curly vs straight quotes; both are fine, but they affect
-  character counts against the 500-char cap.
-- **Stated license** — confirm it actually says public domain.
+```
+Luke 17:36 · Acts 8:37 · Acts 15:34 · Acts 24:7 · Romans 16:25
+```
 
-After installing, run `npm run preview` and check the split stats line. A small fraction of a
-percent needing a split is expected; hundreds would suggest the punctuation is worth a look.
+**This is expected, not corruption.** These passages appear in the Textus Receptus (and so in
+the KJV) but are absent from the critical text the WEB follows. The WEB keeps the verse number
+as a placeholder and moves the content to a footnote. There is nothing to post, so they are
+excluded. 31,103 parsed − 5 empty = 31,098 usable.
+
+## Why the WEB
+
+Modern readable English and unambiguously public domain — no key, no rate limits, no network
+dependency, no attribution obligation, no terms to honour. Alternatives if you ever want to
+switch: **KJV** (public domain; technically perpetual Crown copyright in the UK, not a
+practical concern) and **ASV 1901** (public domain, more literal).
+
+Copyrighted translations — NKJV, NIV, ESV, NLT — cannot be bundled. ESV and NET offer free
+non-commercial APIs, but that means a key, rate limits, network failure handling mid-stream,
+and required attribution eating into the 500-character budget.
+
+## If you swap in a different translation
+
+Check:
+
+- **Verse count** — roughly 31,000 for a complete Protestant canon.
+- **Book naming** — must be internally consistent, since `"<book> <chapter>:<verse>"` is the
+  no-repeat key. Pick `Psalms` or `Psalm` and never mix.
+- **Encoding** — UTF-8. Curly vs straight quotes both work but change character counts against
+  the 500-char cap.
+- **License** — confirm it actually says public domain.
+
+Then run `npm run preview` and read the split-stats line. For the WEB it is **1 verse out of
+31,098** (Esther 8:9, 491 characters). Hundreds would mean the punctuation splits badly and is
+worth investigating.
 
 ## Why bundled rather than fetched from an API
 
