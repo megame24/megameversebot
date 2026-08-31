@@ -35,6 +35,25 @@ the KJV) but are absent from the critical text the WEB follows. The WEB keeps th
 as a placeholder and moves the content to a footnote. There is nothing to post, so they are
 excluded. 31,103 parsed − 5 empty = 31,098 usable.
 
+## The divine name reads "Yahweh"
+
+The classic WEB transliterates the Tetragrammaton as **Yahweh** (~6,800 times), so chat shows
+*"Yahweh is my shepherd; I shall lack nothing"* rather than the *"the LORD"* convention familiar
+from the KJV, NIV and NKJV. This is deliberate on the translators' part and shows up in a good
+share of Old Testament verses.
+
+**Do not try to fix this with find-and-replace.** It was attempted and reverted. `Yahweh` is a
+proper name taking no article; `LORD` conventionally takes one. Substitution yields *"LORD is
+my shepherd"* and *"is LORD of Armies"* — ungrammatical in thousands of places, and no regex can
+decide reliably (`Yahweh said` → *the LORD said*, but `O Yahweh` → *O the LORD* is wrong).
+Handling `Lord Yahweh` → `Lord GOD` is easy; the article problem is not.
+
+If the LORD convention matters more than everything else, the real options are the WEB **British
+Edition (WEBBE)**, which uses it natively with proper editorial handling, or the **KJV**. Both
+are public domain. WEBBE was investigated and the JSON sources found were stale and
+poorly-structured; ebible.org distributes it as USFM, which needs a real parser. That is the
+work required — not a substitution pass.
+
 ## Why the WEB
 
 Modern readable English and unambiguously public domain — no key, no rate limits, no network
