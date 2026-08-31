@@ -12,6 +12,15 @@ export const MIN_INTERVAL_MS = 30 * 1000;
 export const RETRY_DELAY_MS = 2 * 60 * 1000;
 
 /**
+ * How often to reassert "still holding" while the stream is offline.
+ *
+ * The offline branch runs on every poll, so without this the bot either spams a
+ * line a minute or goes completely silent for hours — and silence is
+ * indistinguishable from a crash.
+ */
+export const IDLE_HEARTBEAT_MS = 30 * 60 * 1000;
+
+/**
  * Interval with jitter applied, as ±jitterMinutes around the base.
  *
  * Posting at exactly :00 and :30 forever reads as robotic; a few minutes of

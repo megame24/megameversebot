@@ -11,7 +11,13 @@
 import { AuthError, loadTokens, validateToken } from './auth.ts';
 import { loadConfig, requireTwitchConfig, type Config } from './config.ts';
 import { describePost, postVerse } from './post.ts';
-import { formatMinutes, nextIntervalMs, pollIntervalMs, RETRY_DELAY_MS } from './schedule.ts';
+import {
+  formatMinutes,
+  IDLE_HEARTBEAT_MS,
+  nextIntervalMs,
+  pollIntervalMs,
+  RETRY_DELAY_MS,
+} from './schedule.ts';
 import { isStreamLive } from './twitch.ts';
 import { loadVerses } from './verses.ts';
 
@@ -96,6 +102,10 @@ async function main(): Promise<void> {
   let interval = nextIntervalMs(config);
   let isPosting = false;
 
+  /** Last known live state. null = not yet checked, so the first result logs. */
+  let wasLive: boolean | null = null;
+  let lastIdleNoticeAt = 0;
+
   if (!config.postOnStart) {
     log(`Next post in ~${formatMinutes(interval)}`);
   }
@@ -110,10 +120,29 @@ async function main(): Promise<void> {
 
     isPosting = true;
     try {
-      if (config.onlyWhenLive && !(await isStreamLive())) {
-        // lastPostAt is deliberately left alone: once the stream comes up, the
-        // interval has long since elapsed and a verse lands shortly after.
-        return;
+      if (config.onlyWhenLive) {
+        const live = await isStreamLive();
+
+        if (!live) {
+          // Log the transition, not every check. lastPostAt is deliberately not
+          // updated, so once the interval has elapsed this branch runs on every
+          // poll — logging each one would be a line a minute, all night.
+          if (wasLive !== false) {
+            log(`Stream offline — holding until you go live`);
+            lastIdleNoticeAt = Date.now();
+          } else if (Date.now() - lastIdleNoticeAt >= IDLE_HEARTBEAT_MS) {
+            // Periodic proof of life, so hours of silence aren't ambiguous.
+            log(`Still holding — stream offline`);
+            lastIdleNoticeAt = Date.now();
+          }
+          wasLive = false;
+          return;
+        }
+
+        if (wasLive === false) {
+          log(`Stream live — resuming`);
+        }
+        wasLive = true;
       }
 
       const result = await postVerse();
