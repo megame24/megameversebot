@@ -8,7 +8,9 @@
     "node": ">=22.6"
   },
   "scripts": {
+    "start": "node --env-file=.env --experimental-strip-types src/index.ts",
     "preview": "node --experimental-strip-types src/preview.ts",
+    "check": "node --experimental-strip-types src/check-schedule.ts",
     "authorize": "node --env-file=.env --experimental-strip-types src/authorize.ts",
     "whoami": "node --env-file=.env --experimental-strip-types src/whoami.ts",
     "send-test": "node --env-file=.env --experimental-strip-types src/send-test.ts",

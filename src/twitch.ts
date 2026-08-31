@@ -164,6 +164,20 @@ export async function sendChatMessages(messages: string[]): Promise<SendResult[]
   return results;
 }
 
+/**
+ * Whether the channel is currently streaming.
+ *
+ * Queried by user_id rather than login: a channel can change its login name,
+ * and the id never moves.
+ */
+export async function isStreamLive(): Promise<boolean> {
+  const config = requireTwitchConfig();
+  const result = await helix<{ data: unknown[] }>('/streams', {
+    query: { user_id: config.channelUserId },
+  });
+  return result.data.length > 0;
+}
+
 export interface TwitchUser {
   id: string;
   login: string;

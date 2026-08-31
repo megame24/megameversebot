@@ -13,7 +13,7 @@ Full design and rationale: **[TWITCH_BIBLE_BOT_PLAN.md](./TWITCH_BIBLE_BOT_PLAN.
 | **1 — Auth + token refresh** | **code done**, needs credentials to run |
 | **2 — Verses, formatting, splitting** | **done** |
 | **3 — Sending to chat** | **code done**, unverified against live Twitch |
-| 4 — Loop + live-gating | not started |
+| **4 — Loop + live-gating** | **code done**, unverified against live Twitch |
 | 5 — Process management | not started |
 
 Phase 2 is entirely offline — no credentials, no network.
@@ -36,7 +36,34 @@ npm run authorize            # log in AS THE BOT — whoever approves is who spe
 npm run whoami               # prints the two user IDs to paste into .env
 npm run send-test -- --dry-run   # format a verse, send nothing
 npm run send-test            # post one verse to chat for real
+npm start                    # run the bot
 ```
+
+## Running the bot
+
+```bash
+npm start                                        # uses .env
+npm start -- --interval=5                        # override the interval, in minutes
+npm start -- --interval=1 --jitter=0 --ignore-live   # fast loop for testing
+```
+
+Start it before going live, Ctrl-C when you're done. It posts only while the stream is up
+unless you pass `--ignore-live`.
+
+**Interval** comes from `INTERVAL_MINUTES` (default 30) with `JITTER_MINUTES` (default ±2) of
+drift so it doesn't land on the same clock minute forever. CLI flags override both, which is
+how you test without waiting half an hour.
+
+**While offline** the timer is left alone rather than reset, so once you go live the interval
+has long since elapsed and a verse lands shortly after — rather than making you wait a full
+interval into the stream.
+
+**Sleep-safe:** the loop polls and compares elapsed wall-clock time instead of trusting
+`setInterval`'s period, which stalls while the machine sleeps. `npm run check` asserts the
+timing arithmetic.
+
+**On failure** it backs off ~2 minutes rather than burning a whole interval, and keeps running.
+An auth failure is logged prominently, since nothing will post until it's resolved.
 
 `whoami` doubles as the health check — it exercises load → refresh-if-needed →
 authenticated request, so it's the first thing to run when something stops working.
@@ -76,7 +103,10 @@ src/
 ├── twitch.ts        # Helix client — always sends a guaranteed-fresh token
 ├── whoami.ts        # validate token, resolve user IDs, health check
 ├── post.ts          # one full cycle: pick → format → send → remember
-└── send-test.ts     # post a single verse now (Phase 3 proof)
+├── send-test.ts     # post a single verse now
+├── schedule.ts      # interval/jitter/poll arithmetic
+├── check-schedule.ts# assertions over that arithmetic
+└── index.ts         # the bot — loop, live-gating, shutdown
 
 data/                # bundled translation (public domain)
 state/               # gitignored — tokens.json, recent.json
