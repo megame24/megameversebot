@@ -1,0 +1,62 @@
+[
+  {
+    "book": "Genesis",
+    "chapter": 1,
+    "verse": 1,
+    "text": "In the beginning, God created the heavens and the earth."
+  },
+  {
+    "book": "Joshua",
+    "chapter": 1,
+    "verse": 9,
+    "text": "Haven't I commanded you? Be strong and courageous. Don't be afraid. Don't be dismayed, for Yahweh your God is with you wherever you go."
+  },
+  {
+    "book": "Psalms",
+    "chapter": 23,
+    "verse": 1,
+    "text": "Yahweh is my shepherd; I shall lack nothing."
+  },
+  {
+    "book": "Psalms",
+    "chapter": 119,
+    "verse": 105,
+    "text": "Your word is a lamp to my feet, and a light for my path."
+  },
+  {
+    "book": "Proverbs",
+    "chapter": 3,
+    "verse": 5,
+    "text": "Trust in Yahweh with all your heart, and don't lean on your own understanding."
+  },
+  {
+    "book": "Isaiah",
+    "chapter": 40,
+    "verse": 31,
+    "text": "But those who wait for Yahweh will renew their strength. They will mount up with wings like eagles. They will run, and not be weary. They will walk, and not faint."
+  },
+  {
+    "book": "John",
+    "chapter": 3,
+    "verse": 16,
+    "text": "For God so loved the world, that he gave his one and only Son, that whoever believes in him should not perish, but have eternal life."
+  },
+  {
+    "book": "John",
+    "chapter": 11,
+    "verse": 35,
+    "text": "Jesus wept."
+  },
+  {
+    "book": "Romans",
+    "chapter": 8,
+    "verse": 28,
+    "text": "We know that all things work together for good for those who love God, for those who are called according to his purpose."
+  },
+  {
+    "book": "Philippians",
+    "chapter": 4,
+    "verse": 13,
+    "text": "I can do all things through Christ, who strengthens me."
+  }
+]
