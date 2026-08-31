@@ -12,7 +12,7 @@ Full design and rationale: **[TWITCH_BIBLE_BOT_PLAN.md](./TWITCH_BIBLE_BOT_PLAN.
 | 0 — Twitch setup | **your turn** — see below |
 | **1 — Auth + token refresh** | **code done**, needs credentials to run |
 | **2 — Verses, formatting, splitting** | **done** |
-| 3 — Sending to chat | not started |
+| **3 — Sending to chat** | **code done**, unverified against live Twitch |
 | 4 — Loop + live-gating | not started |
 | 5 — Process management | not started |
 
@@ -31,9 +31,11 @@ Phase 2 is entirely offline — no credentials, no network.
 Then:
 
 ```bash
-cp .env.example .env    # fill in client id, secret, channel
-npm run authorize       # log in AS THE BOT — whoever approves is who speaks
-npm run whoami          # prints the two user IDs to paste into .env
+cp .env.example .env         # fill in client id, secret, channel
+npm run authorize            # log in AS THE BOT — whoever approves is who speaks
+npm run whoami               # prints the two user IDs to paste into .env
+npm run send-test -- --dry-run   # format a verse, send nothing
+npm run send-test            # post one verse to chat for real
 ```
 
 `whoami` doubles as the health check — it exercises load → refresh-if-needed →
@@ -72,11 +74,24 @@ src/
 ├── auth.ts          # token load / refresh / persist
 ├── authorize.ts     # one-time OAuth (run once)
 ├── twitch.ts        # Helix client — always sends a guaranteed-fresh token
-└── whoami.ts        # validate token, resolve user IDs, health check
+├── whoami.ts        # validate token, resolve user IDs, health check
+├── post.ts          # one full cycle: pick → format → send → remember
+└── send-test.ts     # post a single verse now (Phase 3 proof)
 
 data/                # bundled translation (public domain)
 state/               # gitignored — tokens.json, recent.json
 ```
+
+## HTTP 200 does not mean the message was delivered
+
+Twitch's send endpoint answers **200 with `is_sent: false`** when something drops the message
+downstream — AutoMod held it, the channel is in followers-only or subscriber-only mode, or the
+bot account isn't verified. Treating 200 as success produces a bot that cheerfully reports
+posting verses nobody ever saw.
+
+`sendChatMessage` returns `isSent` and any `dropReason`; `postVerse` surfaces it as `delivered`,
+and `send-test` exits non-zero with the likely causes. Keep that check in place in any new
+send path.
 
 ## A constraint on the TypeScript you can write here
 
