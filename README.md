@@ -117,6 +117,23 @@ data/                # bundled translation (public domain)
 state/               # gitignored — tokens.json, recent.json
 ```
 
+## Odd verses are the point, not a defect
+
+Selection is uniform random across all 31,098 verses, so genealogies, census lists and
+territorial allotments land regularly. **This is deliberate and should stay.**
+
+The original design treated it as a flaw and planned a `USE_QUALITY_FILTER` flag to blocklist
+those chapters. Real streams showed the opposite: the verse works as a **discussion prompt, not
+as the content**. An obscure line gives you something to explain — reading the surrounding
+verses for context and talking through them — where a familiar one gives you nothing to do.
+Filtering would remove exactly the verses that generate the best segments.
+
+The filter was therefore never built and the config flag has been removed. If it ever seems
+like an obvious improvement, this is why it isn't.
+
+The ~445-character per-message budget is a separate thing and is not optional — that's a hard
+requirement of Twitch's 500-character cap, not a curation choice.
+
 ## HTTP 200 does not mean the message was delivered
 
 Twitch's send endpoint answers **200 with `is_sent: false`** when something drops the message

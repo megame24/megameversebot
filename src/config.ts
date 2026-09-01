@@ -17,7 +17,6 @@ export interface Config {
   jitterMinutes: number;
   postOnStart: boolean;
   onlyWhenLive: boolean;
-  useQualityFilter: boolean;
 }
 
 export interface TwitchConfig {
@@ -71,7 +70,6 @@ export function loadConfig(): Config {
     jitterMinutes: num('JITTER_MINUTES', 2),
     postOnStart: bool('POST_ON_START', false),
     onlyWhenLive: bool('ONLY_WHEN_LIVE', true),
-    useQualityFilter: bool('USE_QUALITY_FILTER', false),
   };
 }
 

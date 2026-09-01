@@ -367,7 +367,6 @@ ONLY_WHEN_LIVE=true
 TRANSLATION=WEB
 MAX_MESSAGE_CHARS=445             # per-message text budget, not an eligibility gate
 RECENT_MEMORY=500
-USE_QUALITY_FILTER=false          # see "Optional later"
 ```
 
 Validate these on startup and fail fast with a clear message. A bot that starts happily with a
@@ -411,14 +410,21 @@ one that refuses to boot.
 
 ## Optional later
 
-**Quality filter for genealogies.** Random-across-the-whole-Bible means 1 Chronicles 1–9,
-Numbers 1–4, and Joshua's territorial allotments will land occasionally. If that gets old on air,
-the cheapest fix is a **chapter-range blocklist** — roughly 30 lines of config that removes most
-offenders while keeping the whole-Bible feel. Build it behind `USE_QUALITY_FILTER`, default off,
-and flip it if you ever want it.
+**~~Quality filter for genealogies~~ — REJECTED after the first stream.**
 
-*(Note: the ~445-char per-message budget is not curation — it's a hard requirement of the
-Twitch cap. Only the genealogy filter is optional.)*
+This planned a `USE_QUALITY_FILTER` flag to blocklist 1 Chronicles 1–9, Numbers 1–4 and
+Joshua's territorial allotments, on the assumption that odd verses landing on air was a defect.
+
+Streaming proved the opposite. The verse functions as a **discussion prompt, not as content** —
+the broadcaster reads the surrounding verses for context and talks through them, so an obscure
+line is *more* useful than a familiar one. Filtering would remove precisely the verses that
+produce the best segments.
+
+The flag was never implemented and has been removed from config. See "Odd verses are the point"
+in README.md.
+
+*(The ~445-char per-message budget is unrelated and not optional — it's a hard requirement of
+the Twitch cap, not a curation choice.)*
 
 **`!verse` command.** Doesn't change hosting at all — you're already running a persistent process.
 It's one WebSocket connection to Twitch chat (`wss://irc-ws.chat.twitch.tv:443`, or EventSub's
