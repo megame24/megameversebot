@@ -6,7 +6,13 @@
  * Not a test framework — just enough to catch the jitter maths drifting.
  */
 
-import { formatMinutes, MIN_INTERVAL_MS, nextIntervalMs, pollIntervalMs } from './schedule.ts';
+import {
+  formatMinutes,
+  MIN_INTERVAL_MS,
+  nextIntervalMs,
+  nextPost,
+  pollIntervalMs,
+} from './schedule.ts';
 
 let failures = 0;
 
@@ -45,6 +51,70 @@ for (let i = 0; i < 1000; i += 1) {
   if (value < 28 * 60_000 || value > 32 * 60_000) outOfBand += 1;
 }
 check('1000 draws stay within ±jitter', outOfBand === 0, `${outOfBand} outside`);
+
+console.log('\nOpening verse\n');
+
+const MIN = 60_000;
+const wentLive = Date.parse('2026-09-28T19:00:00Z');
+const stream = { id: 'broadcast-1', startedAt: wentLive };
+const timing = { intervalMs: 30 * MIN, openingVerseMinutes: 5 };
+
+// Last post hours ago, so the interval is long overdue — the opener must still wait.
+const overdue = nextPost({
+  ...timing,
+  stream,
+  openedStreamId: null,
+  lastPostAt: wentLive - 3 * 60 * MIN,
+});
+check(
+  'new stream opens 5m after going live, even with the interval overdue',
+  overdue.isOpening && overdue.at === wentLive + 5 * MIN,
+  `got ${JSON.stringify(overdue)}`,
+);
+
+// Last post a moment ago — the opener must not be pushed back by the interval.
+const recent = nextPost({
+  ...timing,
+  stream,
+  openedStreamId: null,
+  lastPostAt: wentLive + 4 * MIN,
+});
+check(
+  'new stream opens 5m after going live, even with the interval not yet elapsed',
+  recent.isOpening && recent.at === wentLive + 5 * MIN,
+  `got ${JSON.stringify(recent)}`,
+);
+
+const opened = nextPost({
+  ...timing,
+  stream,
+  openedStreamId: 'broadcast-1',
+  lastPostAt: wentLive + 5 * MIN,
+});
+check(
+  'once opened, the interval takes over from the opening verse',
+  !opened.isOpening && opened.at === wentLive + 35 * MIN,
+  `got ${JSON.stringify(opened)}`,
+);
+
+const nextBroadcast = nextPost({
+  ...timing,
+  stream: { id: 'broadcast-2', startedAt: wentLive + 24 * 60 * MIN },
+  openedStreamId: 'broadcast-1',
+  lastPostAt: wentLive + 2 * 60 * MIN,
+});
+check(
+  'the next broadcast gets its own opening verse',
+  nextBroadcast.isOpening && nextBroadcast.at === wentLive + 24 * 60 * MIN + 5 * MIN,
+  `got ${JSON.stringify(nextBroadcast)}`,
+);
+
+const ungated = nextPost({ ...timing, stream: null, openedStreamId: null, lastPostAt: wentLive });
+check(
+  'without live-gating there is no opener, only the interval',
+  !ungated.isOpening && ungated.at === wentLive + 30 * MIN,
+  `got ${JSON.stringify(ungated)}`,
+);
 
 console.log('\nPoll interval\n');
 

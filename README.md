@@ -1,6 +1,7 @@
 # Twitch Bible Verse Bot
 
-Posts a Bible verse into Twitch chat on a configurable interval (default 30 minutes).
+Posts a Bible verse into Twitch chat on a configurable interval (default 30 minutes), and opens
+every stream with one five minutes after going live.
 Runs locally on the streaming PC. Send-only — it never reads chat.
 
 Full design and rationale: **[TWITCH_BIBLE_BOT_PLAN.md](./TWITCH_BIBLE_BOT_PLAN.md)**
@@ -48,15 +49,23 @@ npm start -- --interval=1 --jitter=0 --ignore-live   # fast loop for testing
 ```
 
 Start it before going live, Ctrl-C when you're done. It posts only while the stream is up
-unless you pass `--ignore-live`.
+unless you pass `--ignore-live`, and checks live status every poll so it notices a stream
+starting mid-interval.
 
 **Interval** comes from `INTERVAL_MINUTES` (default 30) with `JITTER_MINUTES` (default ±2) of
 drift so it doesn't land on the same clock minute forever. CLI flags override both, which is
 how you test without waiting half an hour.
 
-**While offline** the timer is left alone rather than reset, so once you go live the interval
-has long since elapsed and a verse lands shortly after — rather than making you wait a full
-interval into the stream.
+**Every stream opens with a verse** `OPENING_VERSE_MINUTES` (default 5) after it goes live,
+whatever the interval — so each stream starts with Bible study. The interval then counts from
+that verse. It's timed from Twitch's own `started_at`, not from when the bot noticed (Helix
+reports a new stream a minute or two late), so it lands within a poll of five minutes in. If you
+start the bot late, the opening verse posts at once.
+
+The opened stream's id is kept in `state/opened-stream.json`, so restarting the bot mid-stream
+does not post a second opener — it picks up the interval instead. Twitch assigns a new id when a
+stream ends and starts again, so that counts as a new stream and gets its own opener.
+`--ignore-live` has no stream to open, so it uses the interval alone.
 
 **Sleep-safe:** the loop polls and compares elapsed wall-clock time instead of trusting
 `setInterval`'s period, which stalls while the machine sleeps. `npm run check` asserts the
@@ -114,7 +123,7 @@ src/
 └── index.ts         # the bot — loop, live-gating, shutdown
 
 data/                # bundled translation (public domain)
-state/               # gitignored — tokens.json, recent.json
+state/               # gitignored — tokens.json, recent.json, opened-stream.json
 ```
 
 ## Odd verses are the point, not a defect

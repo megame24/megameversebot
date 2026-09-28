@@ -1,5 +1,6 @@
 /**
- * The bot. Posts a verse to chat on an interval while you are live.
+ * The bot. Opens every stream with a verse, then posts one on an interval
+ * while you are live.
  *
  *   npm start
  *   npm start -- --interval=5        # override INTERVAL_MINUTES
@@ -8,6 +9,9 @@
  * Runs until interrupted. Start it before going live; Ctrl-C when done.
  */
 
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { AuthError, loadTokens, validateToken } from './auth.ts';
 import { loadConfig, requireTwitchConfig, type Config } from './config.ts';
 import { describePost, postVerse } from './post.ts';
@@ -15,11 +19,16 @@ import {
   formatMinutes,
   IDLE_HEARTBEAT_MS,
   nextIntervalMs,
+  nextPost,
   pollIntervalMs,
   RETRY_DELAY_MS,
 } from './schedule.ts';
-import { isStreamLive } from './twitch.ts';
+import { getLiveStream, type LiveStream } from './twitch.ts';
 import { loadVerses } from './verses.ts';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const stateDir = join(here, '..', 'state');
+const openedPath = join(stateDir, 'opened-stream.json');
 
 interface CliOverrides {
   intervalMinutes?: number;
@@ -45,6 +54,26 @@ function parseArgs(argv: string[]): CliOverrides {
 
 function log(message: string): void {
   console.log(`${new Date().toLocaleTimeString()}  ${message}`);
+}
+
+/**
+ * The broadcast whose opening verse has been posted. Persisted so restarting
+ * the bot mid-stream doesn't open the same stream twice.
+ */
+function loadOpenedStreamId(): string | null {
+  if (!existsSync(openedPath)) return null;
+  try {
+    const parsed = JSON.parse(readFileSync(openedPath, 'utf8')) as { streamId?: unknown };
+    return typeof parsed.streamId === 'string' ? parsed.streamId : null;
+  } catch {
+    // Not worth crashing over; worst case is a second opening verse after a restart.
+    return null;
+  }
+}
+
+function saveOpenedStreamId(streamId: string): void {
+  mkdirSync(stateDir, { recursive: true });
+  writeFileSync(openedPath, JSON.stringify({ streamId }, null, 2));
 }
 
 /**
@@ -91,8 +120,10 @@ async function main(): Promise<void> {
   // were in play — including any CLI overrides.
   log(
     `Interval ${config.intervalMinutes}m ±${config.jitterMinutes}m · ` +
-      `${config.onlyWhenLive ? 'only while live' : 'ignoring live status'} · ` +
-      `${config.postOnStart ? 'posting on start' : 'first post after one interval'}`,
+      (config.onlyWhenLive
+        ? `only while live · opening verse ${config.openingVerseMinutes}m after going live`
+        : `ignoring live status · ` +
+          (config.postOnStart ? 'posting on start' : 'first post after one interval')),
   );
 
   await preflight(config);
@@ -100,13 +131,17 @@ async function main(): Promise<void> {
   // postOnStart is expressed by pretending the last post was long ago.
   let lastPostAt = config.postOnStart ? 0 : Date.now();
   let interval = nextIntervalMs(config);
-  let isPosting = false;
+  let openedStreamId = loadOpenedStreamId();
+  /** After a failure, nothing runs until this time — not even the live check. */
+  let retryAt = 0;
+  let isTicking = false;
 
   /** Last known live state. null = not yet checked, so the first result logs. */
   let wasLive: boolean | null = null;
   let lastIdleNoticeAt = 0;
 
-  if (!config.postOnStart) {
+  // When live-gated, the first tick reports what's next instead.
+  if (!config.onlyWhenLive && !config.postOnStart) {
     log(`Next post in ~${formatMinutes(interval)}`);
   }
 
@@ -115,18 +150,21 @@ async function main(): Promise<void> {
   }, pollIntervalMs(config));
 
   async function tick(): Promise<void> {
-    if (isPosting) return;
-    if (Date.now() - lastPostAt < interval) return;
+    if (isTicking || Date.now() < retryAt) return;
 
-    isPosting = true;
+    isTicking = true;
+    let posting = false;
     try {
-      if (config.onlyWhenLive) {
-        const live = await isStreamLive();
+      let stream: LiveStream | null = null;
 
-        if (!live) {
-          // Log the transition, not every check. lastPostAt is deliberately not
-          // updated, so once the interval has elapsed this branch runs on every
-          // poll — logging each one would be a line a minute, all night.
+      if (config.onlyWhenLive) {
+        // Checked on every poll, not only when a post is due: a stream that
+        // starts mid-interval must be noticed in time for its opening verse.
+        stream = await getLiveStream();
+
+        if (!stream) {
+          // Log the transition, not every check — this runs on every poll, so
+          // logging each one would be a line a minute, all night.
           if (wasLive !== false) {
             log(`Stream offline — holding until you go live`);
             lastIdleNoticeAt = Date.now();
@@ -138,13 +176,26 @@ async function main(): Promise<void> {
           wasLive = false;
           return;
         }
+      }
 
-        if (wasLive === false) {
-          log(`Stream live — resuming`);
-        }
+      const next = nextPost({
+        stream,
+        openedStreamId,
+        lastPostAt,
+        intervalMs: interval,
+        openingVerseMinutes: config.openingVerseMinutes,
+      });
+      const wait = next.at - Date.now();
+
+      if (stream && wasLive !== true) {
+        const what = next.isOpening ? 'opening verse' : 'next verse';
+        log(`Stream live — ${what} ${wait > 0 ? `in ~${formatMinutes(wait)}` : 'now'}`);
         wasLive = true;
       }
 
+      if (wait > 0) return;
+
+      posting = true;
       const result = await postVerse();
       console.log(describePost(result));
 
@@ -155,21 +206,28 @@ async function main(): Promise<void> {
       lastPostAt = Date.now();
       interval = nextIntervalMs(config);
       log(`Next post in ~${formatMinutes(interval)}`);
+
+      if (stream && next.isOpening) {
+        // Recorded even on a drop, as recordRecent is: this stream's opening
+        // slot is used, and a second opener would be worse than a missed one.
+        openedStreamId = stream.id;
+        saveOpenedStreamId(stream.id);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
 
       if (error instanceof AuthError) {
         log(`✗ AUTH FAILURE — the bot cannot post until this is fixed:\n\n${message}\n`);
       } else {
-        log(`✗ Post failed: ${message}`);
+        log(`✗ ${posting ? 'Post' : 'Live check'} failed: ${message}`);
       }
 
-      // Back off briefly rather than burning a whole interval on a transient blip.
-      lastPostAt = Date.now();
-      interval = RETRY_DELAY_MS;
-      log(`Retrying in ~${formatMinutes(interval)}`);
+      // Back off briefly rather than hammering Twitch every poll or burning a
+      // whole interval on a transient blip. Whatever was due stays due.
+      retryAt = Date.now() + RETRY_DELAY_MS;
+      log(`Retrying in ~${formatMinutes(RETRY_DELAY_MS)}`);
     } finally {
-      isPosting = false;
+      isTicking = false;
     }
   }
 
@@ -184,6 +242,10 @@ async function main(): Promise<void> {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
 
   log(`Running. Ctrl-C to stop.\n`);
+
+  // Check now rather than one poll from now, so the log says straight away
+  // whether you're live and when the opening verse will land.
+  void tick();
 }
 
 main().catch((error: unknown) => {

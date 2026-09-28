@@ -4,6 +4,7 @@
  */
 
 import type { Config } from './config.ts';
+import type { LiveStream } from './twitch.ts';
 
 /** Never schedule a gap shorter than this, however the jitter lands. */
 export const MIN_INTERVAL_MS = 30 * 1000;
@@ -34,6 +35,43 @@ export function nextIntervalMs(
   const spread = config.jitterMinutes * 60_000;
   const jittered = base + (random() * 2 - 1) * spread;
   return Math.max(MIN_INTERVAL_MS, jittered);
+}
+
+export interface NextPostArgs {
+  /** The current broadcast, or null when not live-gating. */
+  stream: LiveStream | null;
+  /** The broadcast whose opening verse has already been posted. */
+  openedStreamId: string | null;
+  lastPostAt: number;
+  intervalMs: number;
+  openingVerseMinutes: number;
+}
+
+export interface NextPost {
+  /** Epoch milliseconds. May already be in the past, meaning post now. */
+  at: number;
+  /** True when this is the verse that opens the current broadcast. */
+  isOpening: boolean;
+}
+
+/**
+ * When the next verse is due.
+ *
+ * Every broadcast opens with a verse openingVerseMinutes after it went live,
+ * ignoring the interval entirely. Once that has posted, the interval takes
+ * over, counted from it.
+ *
+ * Anchored to Twitch's started_at rather than to when the bot noticed: Helix
+ * reports a new stream a minute or two late, and a bot started after going
+ * live still knows when the stream began — and so posts at once if it's late.
+ */
+export function nextPost(args: NextPostArgs): NextPost {
+  const { stream, openedStreamId, lastPostAt, intervalMs, openingVerseMinutes } = args;
+
+  if (stream && stream.id !== openedStreamId) {
+    return { at: stream.startedAt + openingVerseMinutes * 60_000, isOpening: true };
+  }
+  return { at: lastPostAt + intervalMs, isOpening: false };
 }
 
 /**

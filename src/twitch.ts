@@ -164,18 +164,28 @@ export async function sendChatMessages(messages: string[]): Promise<SendResult[]
   return results;
 }
 
+export interface LiveStream {
+  /** New for every broadcast, so it tells one stream from the next. */
+  id: string;
+  /** When Twitch says the broadcast began, in epoch milliseconds. */
+  startedAt: number;
+}
+
 /**
- * Whether the channel is currently streaming.
+ * The channel's current broadcast, or null when offline.
  *
  * Queried by user_id rather than login: a channel can change its login name,
  * and the id never moves.
  */
-export async function isStreamLive(): Promise<boolean> {
+export async function getLiveStream(): Promise<LiveStream | null> {
   const config = requireTwitchConfig();
-  const result = await helix<{ data: unknown[] }>('/streams', {
+  const result = await helix<{ data: Array<{ id: string; started_at: string }> }>('/streams', {
     query: { user_id: config.channelUserId },
   });
-  return result.data.length > 0;
+
+  const stream = result.data[0];
+  if (!stream) return null;
+  return { id: stream.id, startedAt: Date.parse(stream.started_at) };
 }
 
 export interface TwitchUser {

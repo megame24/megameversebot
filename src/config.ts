@@ -15,6 +15,8 @@ export interface Config {
   recentMemory: number;
   intervalMinutes: number;
   jitterMinutes: number;
+  /** Every stream opens with a verse this long after going live, whatever the interval. */
+  openingVerseMinutes: number;
   postOnStart: boolean;
   onlyWhenLive: boolean;
 }
@@ -68,6 +70,7 @@ export function loadConfig(): Config {
     recentMemory: num('RECENT_MEMORY', 500),
     intervalMinutes: num('INTERVAL_MINUTES', 30),
     jitterMinutes: num('JITTER_MINUTES', 2),
+    openingVerseMinutes: num('OPENING_VERSE_MINUTES', 5),
     postOnStart: bool('POST_ON_START', false),
     onlyWhenLive: bool('ONLY_WHEN_LIVE', true),
   };

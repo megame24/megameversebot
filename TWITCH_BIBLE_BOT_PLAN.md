@@ -361,6 +361,7 @@ CHANNEL_USER_ID=                  # resolved once via GET /helix/users
 
 INTERVAL_MINUTES=30
 JITTER_MINUTES=2
+OPENING_VERSE_MINUTES=5           # first verse of every stream, regardless of interval
 POST_ON_START=false
 ONLY_WHEN_LIVE=true
 
